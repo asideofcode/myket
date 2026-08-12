@@ -61,6 +61,8 @@ jobs:
         with:
           owner: asideofcode-dev
           repo: myket
+          # Public myket has no source; tag against its main (README) commit.
+          releaseCommitish: main
           tagName: v__VERSION__
           releaseName: "myket __VERSION__"
           releaseBody: |
