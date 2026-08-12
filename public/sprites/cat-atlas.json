@@ -1,0 +1,22 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "image": "cat-atlas.png",
+  "clips": {
+    "idle": {
+      "start": 0,
+      "count": 4,
+      "frameMs": 220
+    },
+    "walk": {
+      "start": 4,
+      "count": 4,
+      "frameMs": 140
+    },
+    "sit": {
+      "start": 8,
+      "count": 4,
+      "frameMs": 220
+    }
+  }
+}

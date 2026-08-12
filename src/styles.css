@@ -1,0 +1,127 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent !important;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "SF Mono", "Menlo", "Consolas", ui-monospace, monospace;
+}
+
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#cat {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: block;
+  width: 128px;
+  height: 128px;
+  cursor: pointer;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: transparent;
+  transition: transform 0.12s ease;
+  touch-action: none;
+}
+
+#cat.carrying {
+  transform: translateY(-10px) rotate(-4deg);
+  cursor: grabbing;
+}
+
+#chat {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 8px;
+  bottom: 136px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(28, 22, 18, 0.92);
+  color: #f3e6d4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+#chat.hidden {
+  display: none;
+}
+
+#chat-log {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+#chat-log .line {
+  margin: 0 0 6px;
+}
+
+#chat-log .you {
+  color: #c9b8a2;
+}
+
+#chat-log .cat {
+  color: #ffb15a;
+}
+
+#chat-form {
+  display: flex;
+  margin: 0;
+}
+
+#chat-input {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #f3e6d4;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+#chat-input:focus {
+  border-color: rgba(255, 177, 90, 0.55);
+}
+
+#chat-hint {
+  margin: 0;
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+#pet-fx {
+  position: absolute;
+  left: 48px;
+  bottom: 128px;
+  height: 36px;
+  line-height: 36px;
+  font-size: 16px;
+  color: #ff7a9a;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.45s ease;
+}
+
+#pet-fx.show {
+  opacity: 1;
+  transform: translateY(-4px);
+}
