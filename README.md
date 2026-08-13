@@ -4,9 +4,26 @@ A tiny desktop cat. It walks around, accepts pets, meows when you bother its tai
 
 **Open source.** Binaries are on [Releases](https://github.com/asideofcode/myket/releases).
 
+## Install (one liner, no sudo)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/asideofcode/myket/main/install.sh | bash
+```
+
+Or with wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/asideofcode/myket/main/install.sh | bash
+```
+
+- **macOS:** installs to `~/Applications/myket.app`
+- **Linux:** installs the AppImage to `~/.local/bin/myket`
+- **Windows:** use the setup exe from Releases (this script is Unix-only)
+
 ## Download
 
-Grab the latest build for your OS from **[Releases](https://github.com/asideofcode/myket/releases/latest)**:
+Manual downloads from **[Releases](https://github.com/asideofcode/myket/releases/latest)**:
+
 
 | Platform | File |
 | --- | --- |
