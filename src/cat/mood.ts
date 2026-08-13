@@ -11,12 +11,16 @@ const MAX_AFFECTION = 100;
 export class Mood {
   affection = 55;
   lastPetAt = performance.now();
+  /** Pets in the current streak (resets after a pause). */
+  petStreak = 0;
   private lastPetAttempt = 0;
 
   /** @returns true if pet counted (not on cooldown) */
   tryPet(nowMs: number): boolean {
     if (nowMs - this.lastPetAttempt < PET_COOLDOWN_MS) return false;
     this.lastPetAttempt = nowMs;
+    if (nowMs - this.lastPetAt < 7_000) this.petStreak += 1;
+    else this.petStreak = 1;
     this.lastPetAt = nowMs;
     this.affection = Math.min(MAX_AFFECTION, this.affection + PET_BOOST);
     return true;
@@ -90,7 +94,7 @@ export function stubReply(userText: string, mood: MoodKind): string {
     return mood === "mad" ? "bribery noted. insufficient." : "lead with tuna next time.";
   }
   if (/\b(who are you|name|what are you)\b/.test(t)) {
-    return "desktop cat. temporary god. myagent.";
+    return "desktop cat. temporary god. myket.";
   }
 
   const pool =

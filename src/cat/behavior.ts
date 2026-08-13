@@ -22,7 +22,7 @@ const CURIOSITY_CHANCE = 0.22;
 
 /**
  * Hitboxes in 128×128 sprite space (normalized to facing-right).
- * Head faces +x; back is the striped torso behind it.
+ * Head faces +x; back is striped torso; tail curls behind (−x).
  */
 export function isHeadHit(
   localX: number,
@@ -41,11 +41,22 @@ export function isBackHit(
   frame = 128,
 ): boolean {
   const x = facing === 1 ? localX : frame - 1 - localX;
-  // Stop before the head so pet vs drag don't fight.
-  return x >= 40 && x < 78 && localY >= 30 && localY <= 74;
+  // Torso only — leave the far rear for the tail.
+  return x >= 42 && x < 78 && localY >= 30 && localY <= 74;
 }
 
-export type CatHotspot = "head" | "back" | null;
+export function isTailHit(
+  localX: number,
+  localY: number,
+  facing: 1 | -1,
+  frame = 128,
+): boolean {
+  const x = facing === 1 ? localX : frame - 1 - localX;
+  // Raised / curled tail behind the body.
+  return x >= 6 && x < 42 && localY >= 14 && localY <= 88;
+}
+
+export type CatHotspot = "head" | "back" | "tail" | null;
 
 export function hotspotAt(
   localX: number,
@@ -54,6 +65,7 @@ export function hotspotAt(
 ): CatHotspot {
   if (isHeadHit(localX, localY, facing)) return "head";
   if (isBackHit(localX, localY, facing)) return "back";
+  if (isTailHit(localX, localY, facing)) return "tail";
   return null;
 }
 
@@ -144,7 +156,16 @@ export class CatBehavior {
     this.locked = true;
     this.chatting = false;
     this.enter("purr", nowMs);
+    // After a short petting streak, settle into a longer purr.
+    if (this.mood.petStreak >= 2) {
+      this.stateUntil = nowMs + 5200 + Math.random() * 1200;
+    }
     return true;
+  }
+
+  /** True once the cat is enjoying a sustained petting streak. */
+  isFullPurr(): boolean {
+    return this.mood.petStreak >= 2;
   }
 
   beginCarry(nowMs: number) {
@@ -255,8 +276,7 @@ export class CatBehavior {
 
     this.followX = targetX;
     this.animator.setFacing(targetX >= this.x ? 1 : -1);
-    this.state = "walk";
-    this.animator.setClip("walk", true);
+    this.ensureWalkAnim();
     this.locked = true;
     this.stateUntil = Math.max(this.stateUntil, this.followUntil);
   }
@@ -348,7 +368,7 @@ export class CatBehavior {
     const target = this.followX;
     const dir: 1 | -1 = target >= this.x ? 1 : -1;
     this.animator.setFacing(dir);
-    this.state = "walk";
+    this.ensureWalkAnim();
 
     this.xFrac += dir * FOLLOW_SPEED * (dtMs / 1000);
     const step =
@@ -489,6 +509,14 @@ export class CatBehavior {
       this.stateUntil = nowMs + 3500 + Math.random() * 4500;
     } else {
       this.stateUntil = nowMs + 2500 + Math.random() * 3500;
+    }
+  }
+
+  /** Start walk anim only when entering it — never reset every frame (that freezes legs). */
+  private ensureWalkAnim() {
+    this.state = "walk";
+    if (this.animator.getClip() !== "walk") {
+      this.animator.setClip("walk", true);
     }
   }
 

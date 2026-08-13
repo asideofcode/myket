@@ -6,7 +6,7 @@ import {
   getCurrentWindow,
 } from "@tauri-apps/api/window";
 import { loadAtlas, SpriteAnimator } from "./cat/sprites";
-import { CatBehavior, hotspotAt, isBackHit, isHeadHit } from "./cat/behavior";
+import { CatBehavior, hotspotAt, isBackHit, isHeadHit, isTailHit } from "./cat/behavior";
 import { stubReply } from "./cat/mood";
 import {
   loadScreens,
@@ -14,7 +14,7 @@ import {
   primaryScreen,
   screenAt,
 } from "./cat/monitors";
-import { playPurr, toggleMute, isMuted } from "./cat/sound";
+import { playPurr, playMeow, toggleMute, isMuted } from "./cat/sound";
 
 const CAT = 128;
 const PAD_TOP = 40;
@@ -54,8 +54,6 @@ async function main() {
 
   const win = getCurrentWindow();
   let chatOpen = false;
-  let lastClick = 0;
-  let clickGen = 0;
   let lastSentX = 0;
   let lastSentY = 0;
 
@@ -70,7 +68,7 @@ async function main() {
     await win.setPosition(new LogicalPosition(behavior.x, behavior.y));
     lastSentX = behavior.x;
     lastSentY = behavior.y;
-    console.info("myagent: home", {
+    console.info("myket: home", {
       x: behavior.x,
       y: behavior.y,
       screens: screens.length,
@@ -144,7 +142,7 @@ async function main() {
     void fx.offsetWidth;
     fx.classList.add("show");
     window.setTimeout(() => fx.classList.remove("show"), 450);
-    void playPurr();
+    void playPurr(behavior.isFullPurr());
   }
 
   function canvasLocal(e: { clientX: number; clientY: number }) {
@@ -171,8 +169,12 @@ async function main() {
       cat.setAttribute("aria-label", "Cat back — drag to move");
     } else if (spot === "head") {
       cat.style.cursor = "pointer";
-      cat.title = "Pet";
-      cat.setAttribute("aria-label", "Cat head — click to pet, double-click to chat");
+      cat.title = "Pet · Ctrl-chat";
+      cat.setAttribute("aria-label", "Cat head — click to pet, Ctrl-click to chat");
+    } else if (spot === "tail") {
+      cat.style.cursor = "pointer";
+      cat.title = "Meow";
+      cat.setAttribute("aria-label", "Cat tail — click to meow");
     } else {
       cat.style.cursor = "default";
       cat.title = "";
@@ -227,9 +229,6 @@ async function main() {
     if (pendingGrab && Math.hypot(dx, dy) >= DRAG_THRESHOLD) {
       pendingGrab = false;
       dragging = true;
-      clickGen += 1; // cancel pending pet click
-      cat.classList.add("carrying");
-      cat.style.cursor = "grabbing";
       behavior.beginCarry(performance.now());
     }
 
@@ -266,7 +265,6 @@ async function main() {
       queuedX = behavior.x;
       queuedY = behavior.y;
       flushMove();
-      clickGen += 1;
     }
     try {
       cat.releasePointerCapture(e.pointerId);
@@ -285,24 +283,30 @@ async function main() {
     if (behavior.carrying || dragging || pendingGrab) return;
     const { lx, ly } = canvasLocal(e);
     const facing = animator.getFacing();
-    // Head only for pet / chat; back is drag; elsewhere ignores.
+
+    if (isTailHit(lx, ly, facing)) {
+      void playMeow();
+      return;
+    }
+
     if (!isHeadHit(lx, ly, facing)) return;
 
-    const now = performance.now();
-    const isDouble = now - lastClick < 350;
-    lastClick = now;
-    const gen = ++clickGen;
-
-    if (isDouble) {
+    // Ctrl/Cmd+click → chat
+    if (e.ctrlKey || e.metaKey) {
       void openChat();
       return;
     }
 
-    window.setTimeout(() => {
-      if (gen !== clickGen) return;
-      if (chatOpen || behavior.carrying) return;
-      if (behavior.pet(performance.now())) flashPet();
-    }, 280);
+    if (chatOpen) return;
+    if (behavior.pet(performance.now())) flashPet();
+  });
+
+  // Click anywhere outside the chat panel dismisses it.
+  document.addEventListener("pointerdown", (e) => {
+    if (!chatOpen) return;
+    const t = e.target;
+    if (t instanceof Node && chat.contains(t)) return;
+    void closeChat();
   });
 
   chatForm.addEventListener("submit", (e) => {
@@ -320,12 +324,17 @@ async function main() {
     if (e.key === "m" || e.key === "M") {
       if (chatOpen && document.activeElement === input) return;
       const on = toggleMute();
-      console.info(on ? "myagent: muted" : "myagent: sound on");
+      console.info(on ? "myket: muted" : "myket: sound on");
     }
     // Rescue: bring cat back to primary display
     if (e.key === "h" || e.key === "H") {
       if (chatOpen && document.activeElement === input) return;
       void placeOnPrimary();
+    }
+    // Force a meow
+    if (e.key === "y" || e.key === "Y") {
+      if (chatOpen && document.activeElement === input) return;
+      void playMeow();
     }
   });
 
@@ -336,8 +345,14 @@ async function main() {
   let queuedX: number | null = null;
   let queuedY: number | null = null;
   let moveAcc = 0;
+  let nextMeowAt = performance.now() + 18_000 + Math.random() * 25_000;
   const MOVE_INTERVAL_MS = 32;
   const FOLLOW_POLL_MS = 400;
+
+  function scheduleNextMeow(fromMs: number) {
+    // Sparse ambient meows — roughly every 25–80s.
+    nextMeowAt = fromMs + 25_000 + Math.random() * 55_000;
+  }
 
   const flushMove = () => {
     if (movePending || queuedX === null || queuedY === null) return;
@@ -389,6 +404,21 @@ async function main() {
       }
     }
 
+    if (
+      now >= nextMeowAt &&
+      !chatOpen &&
+      !behavior.carrying &&
+      !dragging &&
+      behavior.state !== "purr"
+    ) {
+      scheduleNextMeow(now);
+      // Happier cats meow a bit more often; mad ones less.
+      const mood = behavior.moodKind(now);
+      const chance =
+        mood === "happy" ? 0.7 : mood === "mad" || mood === "neglected" ? 0.25 : 0.45;
+      if (Math.random() < chance) void playMeow();
+    }
+
     behavior.update(now, dt);
     animator.draw(ctx);
 
@@ -408,8 +438,8 @@ async function main() {
   };
 
   requestAnimationFrame(tick);
-  if (isMuted()) console.info("myagent: muted (press M to unmute)");
-  console.info("myagent: press H to summon cat to primary display");
+  if (isMuted()) console.info("myket: muted (press M to unmute)");
+  console.info("myket: press H to summon cat to primary display");
 }
 
 window.addEventListener("DOMContentLoaded", () => {

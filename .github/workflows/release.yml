@@ -53,31 +53,20 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # Builds on CI runners, then uploads installers to the *public* myket repo
-      # (source stays private in myket-src).
       - uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          owner: asideofcode-dev
-          repo: myket
-          # Public myket has no source; tag against its main (README) commit.
-          releaseCommitish: main
           tagName: v__VERSION__
           releaseName: "myket __VERSION__"
           releaseBody: |
-            Desktop cat companion — binary-only release (source not published).
+            A tiny desktop cat.
 
-            ## Platforms
-            - macOS Apple Silicon (`aarch64`)
-            - macOS Intel (`x86_64`)
-            - Windows
-            - Linux
+            See the README for no-sudo install notes.
 
-            ## Install notes
             - **macOS:** right-click → Open on first launch (unsigned)
-            - **Windows:** SmartScreen may warn on unsigned builds — More info → Run anyway
-            - **Linux:** install the `.deb` / AppImage from the assets list
+            - **Windows:** SmartScreen may warn — More info → Run anyway
+            - **Linux:** prefer the AppImage (no sudo)
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

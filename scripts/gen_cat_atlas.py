@@ -1,4 +1,4 @@
-"""Generate the pixel-cat sprite atlas used by myagent M0/M1."""
+"""Generate the pixel-cat sprite atlas used by myket M0/M1."""
 from __future__ import annotations
 
 import json

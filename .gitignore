@@ -28,3 +28,7 @@ src-tauri/target
 src-tauri/gen/schemas
 *.dmg
 *.app
+
+app-icon-source.png
+src-tauri/icons/ios
+src-tauri/icons/android

@@ -1,22 +1,66 @@
-/** Tiny procedural purr via Web Audio — no asset file required. */
+/** Sampled cat sounds (public/sounds). Mute via localStorage. */
+
+const PURR_URL = "/sounds/purr.mp3";
+const MEOW_URL = "/sounds/meow.mp3";
 
 let muted =
   typeof localStorage !== "undefined" &&
-  localStorage.getItem("myagent.mute") === "1";
+  localStorage.getItem("myket.mute") === "1";
 
-let ctx: AudioContext | null = null;
+let active: HTMLAudioElement | null = null;
 
-function audio(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!ctx) {
-    const AC =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext })
-        .webkitAudioContext;
-    if (!AC) return null;
-    ctx = new AC();
+function stopActive() {
+  if (!active) return;
+  try {
+    active.pause();
+    active.currentTime = 0;
+  } catch {
+    /* ignore */
   }
-  return ctx;
+  active = null;
+}
+
+function playUrl(
+  url: string,
+  volume: number,
+  opts?: { maxMs?: number },
+): Promise<void> {
+  if (muted) return Promise.resolve();
+  stopActive();
+  const a = new Audio(url);
+  a.volume = volume;
+  active = a;
+
+  const done = a.play().catch(() => {
+    /* autoplay / missing file */
+  });
+
+  if (opts?.maxMs != null) {
+    const maxMs = opts.maxMs;
+    window.setTimeout(() => {
+      if (active !== a) return;
+      const step = () => {
+        if (active !== a) return;
+        a.volume = Math.max(0, a.volume - 0.07);
+        if (a.volume <= 0.02) {
+          stopActive();
+          return;
+        }
+        window.setTimeout(step, 40);
+      };
+      step();
+    }, maxMs);
+  }
+
+  a.addEventListener(
+    "ended",
+    () => {
+      if (active === a) active = null;
+    },
+    { once: true },
+  );
+
+  return done.then(() => undefined);
 }
 
 export function isMuted(): boolean {
@@ -25,8 +69,9 @@ export function isMuted(): boolean {
 
 export function setMuted(on: boolean) {
   muted = on;
+  if (on) stopActive();
   try {
-    localStorage.setItem("myagent.mute", on ? "1" : "0");
+    localStorage.setItem("myket.mute", on ? "1" : "0");
   } catch {
     /* ignore */
   }
@@ -37,51 +82,18 @@ export function toggleMute(): boolean {
   return muted;
 }
 
-/** Soft rumble burst for petting. */
-export async function playPurr(durationMs = 420): Promise<void> {
-  if (muted) return;
-  const ac = audio();
-  if (!ac) return;
-  if (ac.state === "suspended") {
-    try {
-      await ac.resume();
-    } catch {
-      return;
-    }
+/**
+ * Pet purr. Short teaser on a single pet; full rumble after a little streak.
+ */
+export function playPurr(full = false): Promise<void> {
+  return playUrl(PURR_URL, full ? 0.58 : 0.45, full ? undefined : { maxMs: 1100 });
+}
+
+/** Occasional ambient meow. Skips if a purr is already going. */
+export function playMeow(): Promise<void> {
+  if (muted) return Promise.resolve();
+  if (active && !active.paused && active.src.includes("purr")) {
+    return Promise.resolve();
   }
-
-  const now = ac.currentTime;
-  const dur = durationMs / 1000;
-
-  // Low oscillator = purr body
-  const osc = ac.createOscillator();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(42, now);
-  osc.frequency.exponentialRampToValueAtTime(28, now + dur);
-
-  const lfo = ac.createOscillator();
-  lfo.type = "sine";
-  lfo.frequency.value = 12;
-  const lfoGain = ac.createGain();
-  lfoGain.gain.value = 18;
-  lfo.connect(lfoGain);
-  lfoGain.connect(osc.frequency);
-
-  const filter = ac.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = 180;
-
-  const gain = ac.createGain();
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.09, now + 0.05);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-
-  osc.connect(filter);
-  filter.connect(gain);
-  gain.connect(ac.destination);
-
-  osc.start(now);
-  lfo.start(now);
-  osc.stop(now + dur + 0.02);
-  lfo.stop(now + dur + 0.02);
+  return playUrl(MEOW_URL, 0.5);
 }
